@@ -1048,6 +1048,12 @@ percentEncodeSwagger :: Swagger -> Swagger
 percentEncodeSwagger s = s
   { _swaggerDefinitions =
     InsOrdHashMap.mapKeys percentEncodeT $ _swaggerDefinitions s
+  , _swaggerParameters =
+    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerParameters s
+  , _swaggerResponses =
+    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerResponses s
+  , _swaggerSecurityDefinitions =
+    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerSecurityDefinitions s
   }
 
 instance ToJSON SecurityScheme where
@@ -1121,10 +1127,11 @@ instance ToJSON Example where
   toJSON = toJSON . Map.mapKeys show . getExample
 
 instance ToJSON Reference where
-  toJSON (Reference ref) = object [ "$ref" .= ref ]
+  toJSON (Reference ref) = object [ "$ref" .= percentEncodeT ref ]
 
 referencedToJSON :: ToJSON a => Text -> Referenced a -> Value
-referencedToJSON prefix (Ref (Reference ref)) = object [ "$ref" .= (prefix <> ref) ]
+referencedToJSON prefix (Ref (Reference ref)) =
+  object [ "$ref" .= (prefix <> percentEncodeT ref) ]
 referencedToJSON _ (Inline x) = toJSON x
 
 instance ToJSON (Referenced Schema)   where toJSON = referencedToJSON "#/definitions/"
@@ -1193,7 +1200,13 @@ instance FromJSON Swagger where
 percentDecodeSwagger :: Swagger -> Swagger
 percentDecodeSwagger s = s
   { _swaggerDefinitions =
-    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerDefinitions s
+    InsOrdHashMap.mapKeys percentDecodeT $ _swaggerDefinitions s
+  , _swaggerParameters =
+    InsOrdHashMap.mapKeys percentDecodeT $ _swaggerParameters s
+  , _swaggerResponses =
+    InsOrdHashMap.mapKeys percentDecodeT $ _swaggerResponses s
+  , _swaggerSecurityDefinitions =
+    InsOrdHashMap.mapKeys percentDecodeT $ _swaggerSecurityDefinitions s
   }
 
 instance FromJSON SecurityScheme where
@@ -1288,7 +1301,7 @@ instance FromJSON PathItem where
   parseJSON = sopSwaggerGenericParseJSON
 
 instance FromJSON Reference where
-  parseJSON (Object o) = Reference <$> o .: "$ref"
+  parseJSON (Object o) = Reference . percentDecodeT <$> o .: "$ref"
   parseJSON _ = empty
 
 referencedParseJSON :: FromJSON a => Text -> Value -> JSON.Parser (Referenced a)
