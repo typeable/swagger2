@@ -39,7 +39,6 @@ module Data.Swagger (
 
   -- * Swagger specification
   Swagger(..),
-  Host(..),
   Scheme(..),
 
   -- ** Info types
@@ -110,7 +109,6 @@ module Data.Swagger (
 
   -- ** Miscellaneous
   MimeList(..),
-  URL(..),
 ) where
 
 import Data.Swagger.Lens
@@ -255,7 +253,7 @@ import Data.Swagger.Internal
 -- Both these classes provide means to encode /types/ as Swagger /schemas/.
 --
 -- @'ToParamSchema'@ is intended to be used for primitive API endpoint parameters,
--- such as query parameters, headers and URL path pieces.
+-- such as query parameters, headers and URI path pieces.
 -- Its corresponding value-encoding class is @'ToHttpApiData'@ (from @http-api-data@ package).
 --
 -- @'ToSchema'@ is used for request and response bodies and mostly differ from

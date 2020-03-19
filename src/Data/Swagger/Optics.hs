@@ -75,7 +75,6 @@ import Optics.TH
 -- Lenses
 
 makeFieldLabels ''Swagger
-makeFieldLabels ''Host
 makeFieldLabels ''Info
 makeFieldLabels ''Contact
 makeFieldLabels ''License

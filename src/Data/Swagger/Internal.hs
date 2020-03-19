@@ -44,6 +44,7 @@ import           GHC.Generics             (Generic)
 import           Network.Socket           (HostName, PortNumber)
 import           Network.HTTP.Media       (MediaType)
 import           Text.Read                (readMaybe)
+import           Text.URI
 
 import           Data.HashMap.Strict.InsOrd (InsOrdHashMap)
 import qualified Data.HashMap.Strict.InsOrd as InsOrdHashMap
@@ -58,6 +59,7 @@ import Data.Swagger.Internal.AesonUtils (sopSwaggerGenericToJSON
                                         ,saoAdditionalPairs
                                         ,saoSubObject)
 import Data.Swagger.Internal.Utils
+import Data.Swagger.Internal.Orphans ()
 
 #if MIN_VERSION_aeson(0,10,0)
 import Data.Swagger.Internal.AesonUtils (sopSwaggerGenericToEncoding)
@@ -81,7 +83,7 @@ data Swagger = Swagger
 
     -- | The host (name or ip) serving the API. It MAY include a port.
     -- If the host is not included, the host serving the documentation is to be used (including the port).
-  , _swaggerHost :: Maybe Host
+  , _swaggerHost :: Maybe (RText Host)
 
     -- | The base path on which the API is served, which is relative to the host.
     -- If it is not included, the API is served directly under the host.
@@ -102,7 +104,7 @@ data Swagger = Swagger
 
     -- | The available paths and operations for the API.
     -- Holds the relative paths to the individual endpoints.
-    -- The path is appended to the @'basePath'@ in order to construct the full URL.
+    -- The path is appended to the @'basePath'@ in order to construct the full URI.
   , _swaggerPaths :: InsOrdHashMap FilePath PathItem
 
     -- | An object to hold data types produced and consumed by operations.
@@ -166,8 +168,8 @@ data Contact = Contact
   { -- | The identifying name of the contact person/organization.
     _contactName  :: Maybe Text
 
-    -- | The URL pointing to the contact information.
-  , _contactUrl   :: Maybe URL
+    -- | The URI pointing to the contact information.
+  , _contactUrl   :: Maybe URI
 
     -- | The email address of the contact person/organization.
   , _contactEmail :: Maybe Text
@@ -178,34 +180,12 @@ data License = License
   { -- | The license name used for the API.
     _licenseName :: Text
 
-    -- | A URL to the license used for the API.
-  , _licenseUrl :: Maybe URL
+    -- | A URI to the license used for the API.
+  , _licenseUrl :: Maybe URI
   } deriving (Eq, Show, Generic, Data, Typeable)
 
 instance IsString License where
   fromString s = License (fromString s) Nothing
-
--- | The host (name or ip) serving the API. It MAY include a port.
-data Host = Host
-  { _hostName :: HostName         -- ^ Host name.
-  , _hostPort :: Maybe PortNumber -- ^ Optional port.
-  } deriving (Eq, Show, Generic, Typeable)
-
-instance IsString Host where
-  fromString s = Host s Nothing
-
-hostConstr :: Constr
-hostConstr = mkConstr hostDataType "Host" [] Prefix
-
-hostDataType :: DataType
-hostDataType = mkDataType "Data.Swagger.Host" [hostConstr]
-
-instance Data Host where
-  gunfold k z c = case constrIndex c of
-    1 -> k (k (z (\name mport -> Host name (fromInteger <$> mport))))
-    _ -> error $ "Data.Data.gunfold: Constructor " ++ show c ++ " is not of type Host."
-  toConstr (Host _ _) = hostConstr
-  dataTypeOf _ = hostDataType
 
 -- | The transfer protocol of the API.
 data Scheme
@@ -496,12 +476,12 @@ instance Data (SwaggerType 'SwaggerKindSchema) where
   dataTypeOf = swaggerTypeDataType
 
 data ParamLocation
-  = -- | Parameters that are appended to the URL.
+  = -- | Parameters that are appended to the URI.
     -- For example, in @/items?id=###@, the query parameter is @id@.
     ParamQuery
     -- | Custom headers that are expected as part of the request.
   | ParamHeader
-    -- | Used together with Path Templating, where the parameter value is actually part of the operation's URL.
+    -- | Used together with Path Templating, where the parameter value is actually part of the operation's URI.
     -- This does not include the host or base path of the API.
     -- For example, in @/items/{itemId}@, the path parameter is @itemId@.
   | ParamPath
@@ -621,8 +601,8 @@ data Xml = Xml
     -- If wrapped is false, it will be ignored.
     _xmlName :: Maybe Text
 
-    -- | The URL of the namespace definition.
-    -- Value SHOULD be in the form of a URL.
+    -- | The URI of the namespace definition.
+    -- Value SHOULD be in the form of a URI.
   , _xmlNamespace :: Maybe Text
 
     -- | The prefix to be used for the name.
@@ -720,10 +700,10 @@ data ApiKeyParams = ApiKeyParams
   , _apiKeyIn :: ApiKeyLocation
   } deriving (Eq, Show, Generic, Data, Typeable)
 
--- | The authorization URL to be used for OAuth2 flow. This SHOULD be in the form of a URL.
+-- | The authorization URI to be used for OAuth2 flow. This SHOULD be in the form of a URI.
 type AuthorizationURL = Text
 
--- | The token URL to be used for OAuth2 flow. This SHOULD be in the form of a URL.
+-- | The token URI to be used for OAuth2 flow. This SHOULD be in the form of a URI.
 type TokenURL = Text
 
 data OAuth2Flow
@@ -806,8 +786,8 @@ data ExternalDocs = ExternalDocs
     -- GFM syntax can be used for rich text representation.
     _externalDocsDescription :: Maybe Text
 
-    -- | The URL for the target documentation.
-  , _externalDocsUrl :: URL
+    -- | The URI for the target documentation.
+  , _externalDocsUrl :: URI
   } deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
 instance Hashable ExternalDocs
@@ -824,8 +804,6 @@ data Referenced a
 
 instance IsString a => IsString (Referenced a) where
   fromString = Inline . fromString
-
-newtype URL = URL { getUrl :: Text } deriving (Eq, Ord, Show, Hashable, ToJSON, FromJSON, Data, Typeable)
 
 data AdditionalProperties
   = AdditionalPropertiesAllowed Bool
@@ -949,7 +927,6 @@ instance SwaggerMonoid SecurityDefinitions
 instance (Eq a, Hashable a) => SwaggerMonoid (InsOrdHashSet a)
 
 instance SwaggerMonoid MimeList
-deriving instance SwaggerMonoid URL
 
 instance SwaggerMonoid (SwaggerType t) where
   swaggerMempty = SwaggerString
@@ -1106,12 +1083,6 @@ instance ToJSON (ParamSchema t) => ToJSON (SwaggerItems t) where
     ]
   toJSON (SwaggerItemsArray  x) = object [ "items" .= x ]
 
-instance ToJSON Host where
-  toJSON (Host host mport) = toJSON $
-    case mport of
-      Nothing -> host
-      Just port -> host ++ ":" ++ show port
-
 instance ToJSON MimeList where
   toJSON (MimeList xs) = toJSON (map show xs)
 
@@ -1260,15 +1231,6 @@ instance FromJSON (SwaggerItems 'SwaggerKindSchema) where
       | null obj  = pure $ SwaggerItemsArray [] -- Nullary schema.
       | otherwise = SwaggerItemsObject <$> parseJSON js
   parseJSON js@(Array _)  = SwaggerItemsArray  <$> parseJSON js
-  parseJSON _ = empty
-
-instance FromJSON Host where
-  parseJSON (String s) = case map Text.unpack $ Text.split (== ':') s of
-    [host] -> return $ Host host Nothing
-    [host, port] -> case readMaybe port of
-      Nothing -> fail $ "Invalid port `" ++ port ++ "'"
-      Just p -> return $ Host host (Just (fromInteger p))
-    _ -> fail $ "Invalid host `" ++ Text.unpack s ++ "'"
   parseJSON _ = empty
 
 instance FromJSON MimeList where

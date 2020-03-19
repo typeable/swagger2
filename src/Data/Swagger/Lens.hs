@@ -17,7 +17,10 @@
 -- Stability:   experimental
 --
 -- Lenses and prisms for Swagger.
-module Data.Swagger.Lens where
+module Data.Swagger.Lens
+  ( module Data.Swagger.Lens
+  , module Text.URI.Lens
+  ) where
 
 import Control.Lens
 import Data.Aeson (Value)
@@ -25,11 +28,11 @@ import Data.Scientific (Scientific)
 import Data.Swagger.Internal
 import Data.Swagger.Internal.Utils
 import Data.Text (Text)
+import Text.URI.Lens
 
 -- * Classy lenses
 
 makeFields ''Swagger
-makeFields ''Host
 makeFields ''Info
 makeFields ''Contact
 makeFields ''License

@@ -93,7 +93,7 @@ infoExampleJSON = [aesonQQ|
 contactExample :: Contact
 contactExample = mempty
   & name  ?~ "API Support"
-  & url   ?~ URL "http://www.swagger.io/support"
+  & url   ?~ URI "http://www.swagger.io/support"
   & email ?~ "support@swagger.io"
 
 contactExampleJSON :: Value
@@ -111,7 +111,7 @@ contactExampleJSON = [aesonQQ|
 
 licenseExample :: License
 licenseExample = "Apache 2.0"
-  & url ?~ URL "http://www.apache.org/licenses/LICENSE-2.0.html"
+  & url ?~ URI "http://www.apache.org/licenses/LICENSE-2.0.html"
 
 licenseExampleJSON :: Value
 licenseExampleJSON = [aesonQQ|
@@ -545,7 +545,7 @@ swaggerExample = mempty
       & version .~ "1.0"
       & title .~ "Todo API"
       & license ?~ "MIT"
-      & license._Just.url ?~ URL "http://mit.com"
+      & license._Just.url ?~ URI "http://mit.com"
       & description ?~ "This is a an API that tests servant-swagger support for a Todo API")
   & paths.at "/todo/{id}" ?~ (mempty & get ?~ ((mempty :: Operation)
       & at 200 ?~ Inline (mempty
