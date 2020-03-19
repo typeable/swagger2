@@ -55,7 +55,9 @@ import Data.Swagger.Internal.AesonUtils (sopSwaggerGenericToJSON
                                         ,AesonDefaultValue(..)
                                         ,mkSwaggerAesonOptions
                                         ,saoAdditionalPairs
-                                        ,saoSubObject)
+                                        ,saoSubObject
+                                        ,percentEncodeT
+                                        ,percentDecodeT)
 import Data.Swagger.Internal.Utils
 
 #if MIN_VERSION_aeson(0,10,0)
@@ -1039,8 +1041,14 @@ instance ToJSON SecuritySchemeType where
     <+> object [ "type" .= ("oauth2" :: Text) ]
 
 instance ToJSON Swagger where
-  toJSON = sopSwaggerGenericToJSON
-  DEFINE_TOENCODING
+  toJSON = sopSwaggerGenericToJSON . percentEncodeSwagger
+  toEncoding = sopSwaggerGenericToEncoding . percentEncodeSwagger
+
+percentEncodeSwagger :: Swagger -> Swagger
+percentEncodeSwagger s = s
+  { _swaggerDefinitions =
+    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerDefinitions s
+  }
 
 instance ToJSON SecurityScheme where
   toJSON = sopSwaggerGenericToJSON
@@ -1180,7 +1188,13 @@ instance FromJSON SecuritySchemeType where
   parseJSON _ = empty
 
 instance FromJSON Swagger where
-  parseJSON = sopSwaggerGenericParseJSON
+  parseJSON = fmap percentDecodeSwagger . sopSwaggerGenericParseJSON
+
+percentDecodeSwagger :: Swagger -> Swagger
+percentDecodeSwagger s = s
+  { _swaggerDefinitions =
+    InsOrdHashMap.mapKeys percentEncodeT $ _swaggerDefinitions s
+  }
 
 instance FromJSON SecurityScheme where
   parseJSON = sopSwaggerGenericParseJSON
